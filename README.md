@@ -747,4 +747,4 @@ MIT — see [`LICENSE`](./LICENSE) for details.
 
 </div>
 
-Deployment : https://ai-integrated-personalized-shopping-platform-nzovyhk29.vercel.app/
+Deployment : https://ai-integrated-personalized-shopping-platform-ium5921jz.vercel.app/
