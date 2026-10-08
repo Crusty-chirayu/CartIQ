@@ -118,12 +118,10 @@ category_id,
   if (error || !products) {
     return fallbackProducts;
   }
-  console.log("TOTAL PRODUCTS:", products.length);
-console.log(products);
 
-return (products as ProductRow[]).map((product) =>
-  toProduct(product)
-);
+  return (products as ProductRow[]).map((product) =>
+    toProduct(product)
+  );
 }
 
 export async function getProductBySlug(

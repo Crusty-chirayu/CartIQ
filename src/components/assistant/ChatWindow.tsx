@@ -189,43 +189,52 @@ export default function ChatWindow() {
       const history = await getMessages(conversation.id);
 
       setMessages(
-        history.map(
-          (msg: {
-            id: string;
-            role: "user" | "assistant";
-            type?: string;
-            content: string;
-            metadata?: {
-              products?: unknown[];
-              comparison?: unknown[];
-            };
-          }) => {
-            const messageType = msg.type as ChatMessage["type"] | undefined;
-            const type =
-              messageType === "products" ||
-              messageType === "comparison" ||
-              messageType === "order"
-                ? messageType
-                : "text";
+        history
+          .map(
+            (msg: {
+              id: string;
+              role: "user" | "assistant";
+              type?: string;
+              content?: unknown;
+              metadata?: {
+                products?: unknown[];
+                comparison?: unknown[];
+              };
+            }): ChatMessage | null => {
+              // Normalization boundary: legacy/persisted rows may carry a
+              // null or non-string content. Assistant rows without usable
+              // content are dropped (they would crash AIMessage); user rows
+              // without content fall back to an empty string.
+              if (typeof msg.content !== "string" || !msg.content) {
+                if (msg.role !== "user") return null;
+              }
+              const messageType = msg.type as ChatMessage["type"] | undefined;
+              const type =
+                messageType === "products" ||
+                messageType === "comparison" ||
+                messageType === "order"
+                  ? messageType
+                  : "text";
 
-            const products = Array.isArray(msg.metadata?.products)
-              ? (msg.metadata.products as AssistantProduct[])
-              : undefined;
-            const comparison = Array.isArray(msg.metadata?.comparison)
-              ? (msg.metadata.comparison as AssistantProduct[])
-              : undefined;
+              const products = Array.isArray(msg.metadata?.products)
+                ? (msg.metadata.products as AssistantProduct[])
+                : undefined;
+              const comparison = Array.isArray(msg.metadata?.comparison)
+                ? (msg.metadata.comparison as AssistantProduct[])
+                : undefined;
 
-            return {
-              id: msg.id,
-              role: msg.role,
-              type,
-              content: msg.content,
-              products,
-              comparison,
-              streaming: false,
-            };
-          }
-        )
+              return {
+                id: msg.id,
+                role: msg.role,
+                type,
+                content: typeof msg.content === "string" ? msg.content : "",
+                products,
+                comparison,
+                streaming: false,
+              };
+            }
+          )
+          .filter((m): m is ChatMessage => m !== null)
       );
     }
 
@@ -383,6 +392,28 @@ export default function ChatWindow() {
       console.log("PRODUCTS:", data.products);
       console.log("=================================");
 
+      // Client boundary: only append well-formed AI messages. A non-OK
+      // response or a payload without string content becomes a visible
+      // error message — never an AIMessage with undefined content.
+      if (!res.ok || typeof data?.message !== "string" || !data.message.trim()) {
+        console.error("AI voice response invalid:", data);
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            type: "text",
+            content:
+              typeof data?.error === "string" && data.error.trim()
+                ? data.error
+                : "Sorry, CartIQ AI returned an invalid response.",
+          },
+        ]);
+
+        return;
+      }
+
       setMessages((prev) => [
         ...prev,
         {
@@ -480,6 +511,28 @@ export default function ChatWindow() {
 
       const data = await res.json();
 
+      // Client boundary: only append well-formed AI messages. A non-OK
+      // response or a payload without string content becomes a visible
+      // error message — never an AIMessage with undefined content.
+      if (!res.ok || typeof data?.message !== "string" || !data.message.trim()) {
+        console.error("AI chat response invalid:", data);
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            type: "text",
+            content:
+              typeof data?.error === "string" && data.error.trim()
+                ? data.error
+                : "Sorry, CartIQ AI returned an invalid response.",
+          },
+        ]);
+
+        return;
+      }
+
       setMessages((prev) => [
         ...prev,
         {
@@ -550,6 +603,29 @@ export default function ChatWindow() {
 
       const data = await res.json();
 
+      // Client boundary: never overwrite a message with undefined content.
+      if (!res.ok || typeof data?.message !== "string" || !data.message.trim()) {
+        console.error("AI regenerate response invalid:", data);
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessageId
+              ? {
+                  ...m,
+                  type: "text",
+                  content:
+                    typeof data?.error === "string" && data.error.trim()
+                      ? data.error
+                      : "Sorry, CartIQ AI returned an invalid response.",
+                  streaming: false,
+                }
+              : m
+          )
+        );
+
+        return;
+      }
+
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantMessageId
@@ -607,43 +683,49 @@ export default function ChatWindow() {
           const history = await getMessages(id);
 
           setMessages(
-            history.map(
-              (msg: {
-                id: string;
-                role: "user" | "assistant";
-                type?: string;
-                content: string;
-                metadata?: {
-                  products?: unknown[];
-                  comparison?: unknown[];
-                };
-              }) => {
-                const messageType = msg.type as ChatMessage["type"] | undefined;
-                const type =
-                  messageType === "products" ||
-                  messageType === "comparison" ||
-                  messageType === "order"
-                    ? messageType
-                    : "text";
+            history
+              .map(
+                (msg: {
+                  id: string;
+                  role: "user" | "assistant";
+                  type?: string;
+                  content?: unknown;
+                  metadata?: {
+                    products?: unknown[];
+                    comparison?: unknown[];
+                  };
+                }): ChatMessage | null => {
+                  // Normalization boundary: see loadConversation above.
+                  if (typeof msg.content !== "string" || !msg.content) {
+                    if (msg.role !== "user") return null;
+                  }
+                  const messageType = msg.type as ChatMessage["type"] | undefined;
+                  const type =
+                    messageType === "products" ||
+                    messageType === "comparison" ||
+                    messageType === "order"
+                      ? messageType
+                      : "text";
 
-                const products = Array.isArray(msg.metadata?.products)
-                  ? (msg.metadata.products as AssistantProduct[])
-                  : undefined;
-                const comparison = Array.isArray(msg.metadata?.comparison)
-                  ? (msg.metadata.comparison as AssistantProduct[])
-                  : undefined;
+                  const products = Array.isArray(msg.metadata?.products)
+                    ? (msg.metadata.products as AssistantProduct[])
+                    : undefined;
+                  const comparison = Array.isArray(msg.metadata?.comparison)
+                    ? (msg.metadata.comparison as AssistantProduct[])
+                    : undefined;
 
-                return {
-                  id: msg.id,
-                  role: msg.role,
-                  type,
-                  content: msg.content,
-                  products,
-                  comparison,
-                  streaming: false,
-                };
-              }
-            )
+                  return {
+                    id: msg.id,
+                    role: msg.role,
+                    type,
+                    content: typeof msg.content === "string" ? msg.content : "",
+                    products,
+                    comparison,
+                    streaming: false,
+                  };
+                }
+              )
+              .filter((m): m is ChatMessage => m !== null)
           );
         }}
         onNewChat={() => {

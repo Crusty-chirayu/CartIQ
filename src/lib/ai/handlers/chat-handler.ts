@@ -32,8 +32,14 @@ Your responsibilities:
       ],
     });
 
+  const content = completion.choices[0]?.message?.content;
+
+  if (!content || !content.trim()) {
+    throw new Error("AI provider returned empty content.");
+  }
+
   return {
     type: "chat",
-    message: completion.choices[0].message.content,
+    message: content,
   };
 }
