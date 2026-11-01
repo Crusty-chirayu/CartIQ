@@ -101,7 +101,7 @@ function buildCsv(rows: CustomerRow[]) {
 export default async function AdminCustomersPage({
   searchParams,
 }: {
-  searchParams?: Promise<SearchParams> | SearchParams;
+  searchParams?: Promise<SearchParams>;
 }) {
   const sp = (searchParams ? await searchParams : undefined) ?? {};
   const q = (sp.q ?? "").trim().toLowerCase();

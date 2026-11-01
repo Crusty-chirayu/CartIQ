@@ -135,7 +135,7 @@ function fulfillmentDotClass(status: string | null) {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams?: Promise<SearchParams> | SearchParams;
+  searchParams?: Promise<SearchParams>;
 }) {
   const sp = (searchParams ? await searchParams : undefined) ?? {};
   const q = (sp.q ?? "").trim().toLowerCase();
